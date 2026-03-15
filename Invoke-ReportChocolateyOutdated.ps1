@@ -80,7 +80,7 @@ function Invoke-ReportChocolateyOutdated {
         Write-Host -NoNewLine -ForegroundColor Yellow ${upgradeCommand}
         Write-Host "``, or run the following command:"
 
-        Write-Host -ForegroundColor Yellow "sudo powershell.exe -NoProfile -NoExit -Command `"$upgradeCommand`""
+        Write-Host -ForegroundColor Yellow "sudo powershell.exe -NoProfile -NoExit -Command `"${upgradeCommand}`""
         Write-Host ""
 
     }
