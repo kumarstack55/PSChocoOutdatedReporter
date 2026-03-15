@@ -60,6 +60,8 @@ function Invoke-ReportChocolateyOutdated {
     Write-Host "Outdated packages:"
     $packages | Format-Table -Property Id, Version, AvailableVersion, Pinned -AutoSize
 
+    $sudoCommand = Get-Command "sudo"
+
     foreach ($package in $packages) {
         $id = $package.Id
         $version = $package.Version
@@ -76,11 +78,16 @@ function Invoke-ReportChocolateyOutdated {
         Write-Host -NoNewLine -ForegroundColor Red ${version}
         Write-Host -NoNewLine " to "
         Write-Host -NoNewLine -ForegroundColor Green ${availableVersion}
-        Write-Host -NoNewLine ", type: ``"
+        Write-Host -NoNewLine ", run: ``"
         Write-Host -NoNewLine -ForegroundColor Yellow ${upgradeCommand}
-        Write-Host "``, or run the following command:"
+        Write-Host -NoNewLine "``"
 
-        Write-Host -ForegroundColor Yellow "sudo powershell.exe -NoProfile -NoExit -Command `"${upgradeCommand}`""
+        if ($sudoCommand) {
+            Write-Host ", or run the following command:"
+            Write-Host -ForegroundColor Yellow "sudo powershell.exe -NoProfile -NoExit -Command `"${upgradeCommand}`""
+        } else {
+            Write-Host "."
+        }
         Write-Host ""
 
     }
