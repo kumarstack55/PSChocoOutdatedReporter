@@ -48,7 +48,12 @@ function Invoke-ReportChocolateyOutdated {
     $packages = @(Get-OutdatedPackages)
 
     if ($packages.Count -eq 0) {
-        Write-Host "All packages are up to date."
+        Write-Host -ForegroundColor Green "All packages are up to date."
+
+        $sleepSeconds = 60
+        Write-Host "No outdated packages found. Exiting in ${sleepSeconds} seconds..."
+        Start-Sleep -Seconds $sleepSeconds
+
         return
     }
 
