@@ -60,7 +60,7 @@ function Invoke-ReportChocolateyOutdated {
     Write-Host "Outdated packages:"
     $packages | Format-Table -Property Id, Version, AvailableVersion, Pinned -AutoSize
 
-    $sudoCommand = Get-Command "sudo"
+    $sudoCommand = Get-Command "sudo" -ErrorAction SilentlyContinue
 
     foreach ($package in $packages) {
         $id = $package.Id
