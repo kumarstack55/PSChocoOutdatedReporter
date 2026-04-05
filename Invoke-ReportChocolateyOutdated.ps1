@@ -31,7 +31,9 @@ class PackageVersion {
 
 class PackageVersionFactory {
     [DateTime] GetPublishedDate([string]$PackageId, [string]$Version) {
+        $savedProgressPreference = $global:ProgressPreference
         try {
+            $global:ProgressPreference = "SilentlyContinue"
             $url = "https://community.chocolatey.org/api/v2/Packages(Id='{0}',Version='{1}')" -f $PackageId, $Version
             $response = Invoke-WebRequest -Uri $url -UseBasicParsing
             $xmlContent = $response.Content
@@ -45,6 +47,8 @@ class PackageVersionFactory {
         } catch {
             Write-Error "Failed to retrieve published date for package '$PackageId' version '$Version': $_"
             return $null
+        } finally {
+            $global:ProgressPreference = $savedProgressPreference
         }
     }
 
