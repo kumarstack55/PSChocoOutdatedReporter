@@ -65,8 +65,13 @@ class PackageVersionFactory {
                 $versionString = $parts[1]
                 $packageVersion = $this.Create($Id, $versionString)
 
-                if ($null -ne $InstalledVersion -and ($packageVersion.Version -lt $InstalledVersion.Version)) {
-                    break
+                if ($null -ne $InstalledVersion) {
+                    if ($packageVersion.PublishedDate -lt $InstalledVersion.PublishedDate) {
+                        break
+                    }
+                    if ($packageVersion.Version -eq $InstalledVersion.Version) {
+                        continue
+                    }
                 }
 
                 $versions.Add($packageVersion)
