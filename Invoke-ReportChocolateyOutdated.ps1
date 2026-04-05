@@ -48,7 +48,7 @@ class PackageVersionFactory {
         }
     }
 
-    [PackageVersion[]] CreateList([string]$Id, [int]$MaxCount) {
+    [PackageVersion[]] CreateList([string]$Id, [int]$MaxCount, [PackageVersion]$InstalledVersion) {
         $outputText = choco search ${Id} --exact --all-versions --limit-output --order-by=LastPublished
 
         $lines = $outputText -split "`r?`n"
@@ -60,11 +60,17 @@ class PackageVersionFactory {
             if ($parts.Length -ge 2) {
                 $versionString = $parts[1]
                 $packageVersion = $this.Create($Id, $versionString)
+
+                if ($null -ne $InstalledVersion -and ($packageVersion.Version -lt $InstalledVersion.Version)) {
+                    break
+                }
+
                 $versions.Add($packageVersion)
 
                 if ($versions.Count -ge $MaxCount) {
                     break
                 }
+
             }
         }
 
@@ -172,7 +178,6 @@ function Invoke-ReportChocolateyOutdated {
     foreach ($package in $packages) {
         $id = $package.Id
         $installedVersion = $package.InstalledVersion
-        $availableVersion = $package.AvailableVersion
         $versionHistroyUrl = "https://community.chocolatey.org/packages/${id}/#versionhistory"
         $upgradeCommand = "choco upgrade ${id}"
 
@@ -181,9 +186,7 @@ function Invoke-ReportChocolateyOutdated {
         Write-Host -NoNewLine "To check Downloads, Last updated, Status, visit: "
         Write-Host -ForegroundColor Yellow "$versionHistroyUrl"
 
-        Write-HostToUpgradeMessage -InstalledVersion $installedVersion -AvailableVersion $availableVersion -UpgradeCommand $upgradeCommand -HasSudo $hasSudo -WriteSudoCommand:$WriteSudoCommand
-
-        $packageVersionList = $packageVersionFactory.CreateList($id, 5)
+        $packageVersionList = $packageVersionFactory.CreateList($id, 10, $installedVersion)
         foreach ($packageVersion in $packageVersionList) {
             Write-HostToUpgradeMessage -InstalledVersion $installedVersion -AvailableVersion $packageVersion -UpgradeCommand $upgradeCommand -HasSudo $hasSudo -WriteSudoCommand:$WriteSudoCommand
         }
