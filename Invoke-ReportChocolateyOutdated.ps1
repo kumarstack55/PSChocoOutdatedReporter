@@ -21,7 +21,13 @@ class PackageVersion {
         $timeSpan = $now - $date
         $days = $timeSpan.TotalDays
         $daysInt = [math]::Floor($days)
-        return "${daysInt}d ago"
+        if ($daysInt -ge 1) {
+            return "${daysInt}d ago"
+        }
+
+        $hoursInt = [math]::Floor($timeSpan.TotalHours)
+        $minutesInt = [math]::Floor($timeSpan.TotalMinutes % 60)
+        return "${hoursInt}h ${minutesInt}m ago"
     }
 
     [string] ToString() {
@@ -63,14 +69,15 @@ class PackageVersionFactory {
             $parts = $line -split "\|"
             if ($parts.Length -ge 2) {
                 $versionString = $parts[1]
+                if ($versionString -eq $InstalledVersion.Version) {
+                    continue
+                }
+
                 $packageVersion = $this.Create($Id, $versionString)
 
                 if ($null -ne $InstalledVersion) {
                     if ($packageVersion.PublishedDate -lt $InstalledVersion.PublishedDate) {
                         break
-                    }
-                    if ($packageVersion.Version -eq $InstalledVersion.Version) {
-                        continue
                     }
                 }
 
@@ -195,7 +202,8 @@ function Invoke-ReportChocolateyOutdated {
         Write-Host -NoNewLine "To check Downloads, Last updated, Status, visit: "
         Write-Host -ForegroundColor Yellow "$versionHistroyUrl"
 
-        $packageVersionList = $packageVersionFactory.CreateList($id, 10, $installedVersion)
+        $maxCount = 20
+        $packageVersionList = $packageVersionFactory.CreateList($id, $maxCount, $installedVersion)
         foreach ($packageVersion in $packageVersionList) {
             Write-HostToUpgradeMessage -InstalledVersion $installedVersion -AvailableVersion $packageVersion -UpgradeCommand $upgradeCommand -HasSudo $hasSudo -WriteSudoCommand:$WriteSudoCommand
         }
