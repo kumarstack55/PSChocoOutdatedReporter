@@ -21,6 +21,11 @@ class PackageVersion {
         $timeSpan = $now - $date
         $days = $timeSpan.TotalDays
         $daysInt = [math]::Floor($days)
+        if ($daysInt -ge 365) {
+            $yearsInt = [math]::Floor($daysInt / 365)
+            return "${yearsInt}y ago"
+        }
+
         if ($daysInt -ge 1) {
             return "${daysInt}d ago"
         }
