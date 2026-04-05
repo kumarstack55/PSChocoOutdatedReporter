@@ -1,4 +1,6 @@
-﻿class CommandRunner {
+﻿param([switch]$WriteSudoCommand = $false)
+
+class CommandRunner {
     [string[]] Run([string]$FilePath, [string[]]$ArgumentList) {
         return (& $FilePath @ArgumentList)
     }
@@ -46,6 +48,29 @@ class PackageVersionFactory {
         }
     }
 
+    [PackageVersion[]] CreateList([string]$Id, [int]$MaxCount) {
+        $outputText = choco search ${Id} --exact --all-versions --limit-output --order-by=LastPublished
+
+        $lines = $outputText -split "`r?`n"
+        $recordLines = $lines | Where-Object { $_.StartsWith($Id + "|") }
+
+        $versions = [System.Collections.Generic.List[object]]::new()
+        foreach ($line in $recordLines) {
+            $parts = $line -split "\|"
+            if ($parts.Length -ge 2) {
+                $versionString = $parts[1]
+                $packageVersion = $this.Create($Id, $versionString)
+                $versions.Add($packageVersion)
+
+                if ($versions.Count -ge $MaxCount) {
+                    break
+                }
+            }
+        }
+
+        return $versions.ToArray()
+    }
+
     [PackageVersion] Create([string]$Id, [string]$versionString) {
         $publishedDate = $this.GetPublishedDate($Id, $versionString)
         return [PackageVersion]::new($versionString, $publishedDate)
@@ -76,7 +101,7 @@ function New-CommandRunner {
 function Get-OutdatedPackages {
     [CmdletBinding()]
     [OutputType([PackageRecord[]])]
-    param([PackageVersionFactory]$versionFactory = [PackageVersionFactory]::new())
+    param([PackageVersionFactory]$packageVersionFactory)
     $runner = New-CommandRunner
     $text = $runner.Run("choco", @("outdated", "--no-color", "--limit-output"))
     $lines = $text -split "`r?`n"
@@ -84,19 +109,48 @@ function Get-OutdatedPackages {
         $parts = $line -split "\|"
         if ($parts.Length -eq 4) {
             $id = $parts[0]
-            $installedVersion = $versionFactory.Create($id, $parts[1])
-            $availableVersion = $versionFactory.Create($id, $parts[2])
+            $installedVersion = $packageVersionFactory.Create($id, $parts[1])
+            $availableVersion = $packageVersionFactory.Create($id, $parts[2])
             [PackageRecord]::new($id, $installedVersion, $availableVersion, $parts[3])
         }
     }
     return $packages
 }
 
+function Write-HostToUpgradeMessage {
+    param(
+        [PackageVersion]$installedVersion,
+        [PackageVersion]$availableVersion,
+        [string]$upgradeCommandBase,
+        [bool]$hasSudo,
+        [switch]$WriteSudoCommand
+    )
+
+    $version = $availableVersion.Version
+    $upgradeCommand = "${upgradeCommandBase} --version=${version}"
+
+    Write-Host -NoNewLine "To upgrade from "
+    Write-Host -NoNewLine -ForegroundColor Red ${installedVersion}
+    Write-Host -NoNewLine " to "
+    Write-Host -NoNewLine -ForegroundColor Green ${availableVersion}
+    Write-Host -NoNewLine ", run: ``"
+    Write-Host -NoNewLine -ForegroundColor Yellow ${upgradeCommand}
+    Write-Host -NoNewLine "``"
+    if ($hasSudo -and $WriteSudoCommand) {
+        Write-Host ", or run the following command:"
+        Write-Host -ForegroundColor Yellow "sudo powershell.exe -NoProfile -NoExit -Command `"${upgradeCommand}`""
+    } else {
+        Write-Host "."
+    }
+}
+
 function Invoke-ReportChocolateyOutdated {
     [CmdletBinding()]
     [OutputType([void])]
-    param()
-    $packages = @(Get-OutdatedPackages)
+    param([switch]$WriteSudoCommand = $false)
+
+    $packageVersionFactory = [PackageVersionFactory]::new()
+    $packages = @(Get-OutdatedPackages -packageVersionFactory $packageVersionFactory)
 
     if ($packages.Count -eq 0) {
         Write-Host -ForegroundColor Green "All packages are up to date."
@@ -113,6 +167,7 @@ function Invoke-ReportChocolateyOutdated {
     Format-Table -Property Id, InstalledVersion, AvailableVersion, Pinned -AutoSize
 
     $sudoCommand = Get-Command "sudo" -ErrorAction SilentlyContinue
+    $hasSudo = [bool]$sudoCommand
 
     foreach ($package in $packages) {
         $id = $package.Id
@@ -126,26 +181,17 @@ function Invoke-ReportChocolateyOutdated {
         Write-Host -NoNewLine "To check Downloads, Last updated, Status, visit: "
         Write-Host -ForegroundColor Yellow "$versionHistroyUrl"
 
-        # TODO: get some previeous releases using `choco search chocolatey --exact --all-versions --limit-output --order-by=LastPublished`
+        Write-HostToUpgradeMessage -InstalledVersion $installedVersion -AvailableVersion $availableVersion -UpgradeCommand $upgradeCommand -HasSudo $hasSudo -WriteSudoCommand:$WriteSudoCommand
 
-        Write-Host -NoNewLine "To upgrade from "
-        Write-Host -NoNewLine -ForegroundColor Red ${installedVersion}
-        Write-Host -NoNewLine " to "
-        Write-Host -NoNewLine -ForegroundColor Green ${availableVersion}
-        Write-Host -NoNewLine ", run: ``"
-        Write-Host -NoNewLine -ForegroundColor Yellow ${upgradeCommand}
-        Write-Host -NoNewLine "``"
-
-        if ($sudoCommand) {
-            Write-Host ", or run the following command:"
-            Write-Host -ForegroundColor Yellow "sudo powershell.exe -NoProfile -NoExit -Command `"${upgradeCommand}`""
-        } else {
-            Write-Host "."
+        $packageVersionList = $packageVersionFactory.CreateList($id, 5)
+        foreach ($packageVersion in $packageVersionList) {
+            Write-HostToUpgradeMessage -InstalledVersion $installedVersion -AvailableVersion $packageVersion -UpgradeCommand $upgradeCommand -HasSudo $hasSudo -WriteSudoCommand:$WriteSudoCommand
         }
+
         Write-Host ""
 
     }
     Read-Host "Press Enter to exit..."
 }
 
-Invoke-ReportChocolateyOutdated
+Invoke-ReportChocolateyOutdated -WriteSudoCommand:$WriteSudoCommand
