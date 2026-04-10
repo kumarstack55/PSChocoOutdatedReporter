@@ -150,7 +150,8 @@ function Write-HostToUpgradeMessage {
         [PackageVersion]$availableVersion,
         [string]$upgradeCommandBase,
         [bool]$hasSudo,
-        [switch]$WriteSudoCommand
+        [switch]$WriteSudoCommand,
+        [int]$ExcludeNewerDays = 7
     )
 
     $version = $availableVersion.Version
@@ -159,7 +160,15 @@ function Write-HostToUpgradeMessage {
     Write-Host -NoNewLine "To upgrade from "
     Write-Host -NoNewLine -ForegroundColor Red ${installedVersion}
     Write-Host -NoNewLine " to "
-    Write-Host -NoNewLine -ForegroundColor Green ${availableVersion}
+
+    $now = Get-Date
+    $coolDownDate = $now.AddDays(-$ExcludeNewerDays)
+    if ($availableVersion.PublishedDate -gt $coolDownDate) {
+        Write-Host -NoNewLine -ForegroundColor DarkGray "${availableVersion} [🧊 cool down]"
+    } else {
+        Write-Host -NoNewLine -ForegroundColor Yellow ${availableVersion}
+    }
+
     Write-Host -NoNewLine ", run: ``"
     Write-Host -NoNewLine -ForegroundColor Yellow ${upgradeCommand}
     Write-Host -NoNewLine "``"
