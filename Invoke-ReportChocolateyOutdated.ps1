@@ -56,7 +56,7 @@ class PackageVersionFactory {
             $publishedText = $node.InnerText
             return [DateTime]$publishedText
         } catch {
-            Write-Error "Failed to retrieve published date for package '$PackageId' version '$Version': $_"
+            Write-Host "Failed to retrieve published date for package '$PackageId' version '$Version': $_"
             return $null
         } finally {
             $global:ProgressPreference = $savedProgressPreference
