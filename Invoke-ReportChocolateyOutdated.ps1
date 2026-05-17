@@ -41,7 +41,7 @@ class Version : System.IComparable {
 }
 
 class PackageVersion {
-    [string]$Version
+    [Version]$Version
     [datetime]$PublishedDate
 
     PackageVersion([Version]$Version, [datetime]$PublishedDate) {
