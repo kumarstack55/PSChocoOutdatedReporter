@@ -6,13 +6,47 @@ class CommandRunner {
     }
 }
 
+class Version : System.IComparable {
+    hidden [string]$VersionString
+
+    Version([string]$versionString) {
+        $this.VersionString = $versionString
+    }
+
+    [string] ToString() {
+        return $this.VersionString
+    }
+
+    [int] CompareTo($other) {
+        $thisParts = $this.VersionString.Split('.')
+        $otherParts = $other.ToString().Split('.')
+        if ($thisParts.Length -ne $otherParts.Length) {
+            throw [System.ArgumentException] "Version strings must have the same number of parts"
+        }
+
+        $index = 0
+        while ($index -lt $thisParts.Length) {
+            $thisPart = [int]$thisParts[$index]
+            $otherPart = [int]$otherParts[$index]
+            if ($thisPart -gt $otherPart) {
+                return 1
+            } elseif ($thisPart -lt $otherPart) {
+                return -1
+            }
+
+            $index++
+        }
+        return 0
+    }
+}
+
 class PackageVersion {
     [string]$Version
     [datetime]$PublishedDate
 
-    PackageVersion([string]$version, [datetime]$publishedDate) {
-        $this.Version = $version
-        $this.PublishedDate = $publishedDate
+    PackageVersion([Version]$Version, [datetime]$PublishedDate) {
+        $this.Version = $Version
+        $this.PublishedDate = $PublishedDate
     }
 
     [string] GetAgoString() {
@@ -35,8 +69,12 @@ class PackageVersion {
         return "${hoursInt}h ${minutesInt}m ago"
     }
 
+    [string] GetVersion() {
+        return $this.Version.ToString()
+    }
+
     [string] ToString() {
-        return $this.Version + " (" + $this.GetAgoString() + ")"
+        return $this.Version.ToString() + " (" + $this.GetAgoString() + ")"
     }
 }
 
@@ -74,7 +112,8 @@ class PackageVersionFactory {
             $parts = $line -split "\|"
             if ($parts.Length -ge 2) {
                 $versionString = $parts[1]
-                if ($versionString -eq $InstalledVersion.Version) {
+                $version = [Version]::new($versionString)
+                if ($version -eq $InstalledVersion.GetVersion()) {
                     continue
                 }
 
@@ -100,7 +139,8 @@ class PackageVersionFactory {
 
     [PackageVersion] Create([string]$Id, [string]$versionString) {
         $publishedDate = $this.GetPublishedDate($Id, $versionString)
-        return [PackageVersion]::new($versionString, $publishedDate)
+        $version = [Version]::new($versionString)
+        return [PackageVersion]::new($version, $publishedDate)
     }
 }
 
@@ -154,19 +194,21 @@ function Write-HostToUpgradeMessage {
         [int]$ExcludeNewerDays = 7
     )
 
-    $version = $availableVersion.Version
+    $version = $availableVersion.GetVersion()
     $upgradeCommand = "${upgradeCommandBase} --version=${version}"
 
     Write-Host -NoNewLine "To upgrade from "
-    Write-Host -NoNewLine -ForegroundColor Red ${installedVersion}
+    Write-Host -NoNewLine -ForegroundColor Red "${installedVersion}"
     Write-Host -NoNewLine " to "
 
     $now = Get-Date
     $coolDownDate = $now.AddDays(-$ExcludeNewerDays)
     if ($availableVersion.PublishedDate -gt $coolDownDate) {
         Write-Host -NoNewLine -ForegroundColor DarkGray "${availableVersion} [🧊 cool down]"
+    } elseif ($availableVersion.GetVersion() -lt $installedVersion.GetVersion()) {
+        Write-Host -NoNewLine -ForegroundColor DarkYellow "${availableVersion} [⚠️ older than installed]"
     } else {
-        Write-Host -NoNewLine -ForegroundColor Yellow ${availableVersion}
+        Write-Host -NoNewLine -ForegroundColor Yellow "${availableVersion}"
     }
 
     Write-Host -NoNewLine ", run: ``"
