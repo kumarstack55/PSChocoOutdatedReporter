@@ -40,11 +40,11 @@ class Version : System.IComparable {
     }
 }
 
-class PackageVersion {
+class SoftwarePackage {
     [Version]$Version
     [datetime]$PublishedDate
 
-    PackageVersion([Version]$Version, [datetime]$PublishedDate) {
+    SoftwarePackage([Version]$Version, [datetime]$PublishedDate) {
         $this.Version = $Version
         $this.PublishedDate = $PublishedDate
     }
@@ -78,7 +78,7 @@ class PackageVersion {
     }
 }
 
-class PackageVersionFactory {
+class SoftwarePackageFactory {
     [DateTime] GetPublishedDate([string]$PackageId, [string]$Version) {
         $savedProgressPreference = $global:ProgressPreference
         try {
@@ -101,7 +101,7 @@ class PackageVersionFactory {
         }
     }
 
-    [PackageVersion[]] CreateList([string]$Id, [int]$MaxCount, [PackageVersion]$InstalledVersion) {
+    [SoftwarePackage[]] CreateList([string]$Id, [int]$MaxCount, [SoftwarePackage]$InstalledVersion) {
         $outputText = choco search ${Id} --exact --all-versions --limit-output --order-by=LastPublished
 
         $lines = $outputText -split "`r?`n"
@@ -137,20 +137,20 @@ class PackageVersionFactory {
         return $versions.ToArray()
     }
 
-    [PackageVersion] Create([string]$Id, [string]$versionString) {
+    [SoftwarePackage] Create([string]$Id, [string]$versionString) {
         $publishedDate = $this.GetPublishedDate($Id, $versionString)
         $version = [Version]::new($versionString)
-        return [PackageVersion]::new($version, $publishedDate)
+        return [SoftwarePackage]::new($version, $publishedDate)
     }
 }
 
 class PackageRecord {
     [string]$Id
-    [PackageVersion]$InstalledVersion
-    [PackageVersion]$AvailableVersion
+    [SoftwarePackage]$InstalledVersion
+    [SoftwarePackage]$AvailableVersion
     [string]$Pinned
 
-    PackageRecord([string]$id, [PackageVersion]$installedVersion, [PackageVersion]$availableVersion, [string]$pinned) {
+    PackageRecord([string]$id, [SoftwarePackage]$installedVersion, [SoftwarePackage]$availableVersion, [string]$pinned) {
         $this.Id = $id
         $this.InstalledVersion = $installedVersion
         $this.AvailableVersion = $availableVersion
@@ -168,7 +168,7 @@ function New-CommandRunner {
 function Get-OutdatedPackages {
     [CmdletBinding()]
     [OutputType([PackageRecord[]])]
-    param([PackageVersionFactory]$packageVersionFactory)
+    param([SoftwarePackageFactory]$packageVersionFactory)
     $runner = New-CommandRunner
     $text = $runner.Run("choco", @("outdated", "--no-color", "--limit-output"))
     $lines = $text -split "`r?`n"
@@ -186,8 +186,8 @@ function Get-OutdatedPackages {
 
 function Write-HostToUpgradeMessage {
     param(
-        [PackageVersion]$installedVersion,
-        [PackageVersion]$availableVersion,
+        [SoftwarePackage]$installedVersion,
+        [SoftwarePackage]$availableVersion,
         [string]$upgradeCommandBase,
         [bool]$hasSudo,
         [switch]$WriteSudoCommand,
@@ -227,7 +227,7 @@ function Invoke-ReportChocolateyOutdated {
     [OutputType([void])]
     param([switch]$WriteSudoCommand = $false)
 
-    $packageVersionFactory = [PackageVersionFactory]::new()
+    $packageVersionFactory = [SoftwarePackageFactory]::new()
     $packages = @(Get-OutdatedPackages -packageVersionFactory $packageVersionFactory)
 
     if ($packages.Count -eq 0) {
