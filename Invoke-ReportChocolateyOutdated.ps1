@@ -69,8 +69,8 @@ class SoftwarePackage {
         return "${hoursInt}h ${minutesInt}m ago"
     }
 
-    [string] GetVersion() {
-        return $this.Version.ToString()
+    [Version] GetVersion() {
+        return $this.Version
     }
 
     [string] ToString() {
