@@ -1,42 +1,10 @@
-﻿param([switch]$WriteSudoCommand = $false)
+﻿using module .\Version.psm1
+
+param([switch]$WriteSudoCommand = $false)
 
 class CommandRunner {
     [string[]] Run([string]$FilePath, [string[]]$ArgumentList) {
         return (& $FilePath @ArgumentList)
-    }
-}
-
-class Version : System.IComparable {
-    hidden [string]$VersionString
-
-    Version([string]$versionString) {
-        $this.VersionString = $versionString
-    }
-
-    [string] ToString() {
-        return $this.VersionString
-    }
-
-    [int] CompareTo($other) {
-        $thisParts = $this.VersionString.Split('.')
-        $otherParts = $other.ToString().Split('.')
-        if ($thisParts.Length -ne $otherParts.Length) {
-            throw [System.ArgumentException] "Version strings must have the same number of parts"
-        }
-
-        $index = 0
-        while ($index -lt $thisParts.Length) {
-            $thisPart = [int]$thisParts[$index]
-            $otherPart = [int]$otherParts[$index]
-            if ($thisPart -gt $otherPart) {
-                return 1
-            } elseif ($thisPart -lt $otherPart) {
-                return -1
-            }
-
-            $index++
-        }
-        return 0
     }
 }
 

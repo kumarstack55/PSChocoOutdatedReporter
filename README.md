@@ -38,6 +38,19 @@ $shortcut.Arguments = "-ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""
 $shortcut.Save()
 ```
 
+## Test
+
+This repository uses Pester for unit tests.
+
+- PowerShell 5.1+
+- Pester 5+
+
+```powershell
+# powershell
+Set-Location .\PSChocoOutdatedReporter
+Invoke-Pester -Path .\tests\Version.Tests.ps1
+```
+
 ## License
 
 MIT
