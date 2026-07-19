@@ -38,6 +38,28 @@ $shortcut.Arguments = "-ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""
 $shortcut.Save()
 ```
 
+If you want to run this script in startup as a terminal tab, you can create a shortcut and add it to the startup folder.
+
+```powershell
+# powershell
+Set-Location .\PSChocoOutdatedReporter
+
+$location = Get-Location
+$path = $location.Path
+$scriptPath = Join-Path $path "Invoke-ReportChocolateyOutdated.ps1"
+
+$startupFolder = [Environment]::GetFolderPath("Startup")
+$shortcutPath = Join-Path $startupFolder "ReportChocolateyOutdated.lnk"
+
+$wshShell = New-Object -ComObject WScript.Shell
+$shortcut = $wshShell.CreateShortcut($shortcutPath)
+$shortcut.TargetPath = "wt.exe"
+$windowsTerminalTitle = "Report Chocolatey Outdated"
+$arguments = "-w 0 new-tab --title `"$windowsTerminalTitle`" powershell.exe -ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""
+$shortcut.Arguments = $arguments
+$shortcut.Save()
+```
+
 ## Test
 
 This repository uses Pester for unit tests.
